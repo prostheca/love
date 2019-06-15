@@ -1,0 +1,391 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>一封送给小可爱的信</title>
+    <link type="text/css" rel="stylesheet" href="./renxi/default.css">
+
+</head>
+<body>
+<div class="mask"></div>
+<div id="gallery" class="fullscreen"></div>
+<audio src="告白气球.mp3" autoplay id="audio"></audio>
+<div id="main">
+    <div id="wrap">
+        <div id="text">
+            <div id="code">小可爱：<br><br>有你相伴，那便是最好的时光。
+                我走你走过的路，听你听过的歌，尝试你曾经做过的一切，
+                并不是想证明我有多爱你，只是想离你更近一点。
+                在我漫长的生命里，最好的时光，是遇见你。
+                真的讨厌现在，我在的城市没有你，我不能强求，那今后的日子我便追随！但愿不要烦我。<br><span class="space">大包子</span></div>
+        </div>
+        <div class="btn">梦与你</div>
+        <div id="clock-box">
+            <div id="clock"></div>
+        </div>
+        <canvas id="canvas" width="1100" height="680"></canvas>
+    </div>
+
+</div>
+
+<script type="text/javascript" src="./renxi/jquery.min.js"></script>
+<script type="text/javascript" src="./renxi/jscex.min.js"></script>
+<script type="text/javascript" src="./renxi/jscex-parser.js"></script>
+<script type="text/javascript" src="./renxi/jscex-jit.js"></script>
+<script type="text/javascript" src="./renxi/jscex-builderbase.min.js"></script>
+<script type="text/javascript" src="./renxi/jscex-async.min.js"></script>
+<script type="text/javascript" src="./renxi/jscex-async-powerpack.min.js"></script>
+<script type="text/javascript" src="./renxi/functions.js" charset="utf-8"></script>
+<script type="text/javascript" src="./renxi/love.js" charset="utf-8"></script>
+
+<script>
+
+    (function () {
+        var polaroidGallery = (function () {
+            var dataSize = {};
+            var dataLength = 0;
+            var currentItem = null;
+            var navbarHeight = 60;
+            var resizeTimeout = null;
+            var xmlhttp = new XMLHttpRequest();
+            var url = "data/data.json";
+
+
+            function polaroidGallery() {
+                observe();
+                xmlhttp.onreadystatechange = function () {
+                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                        var myArr = JSON.parse(xmlhttp.responseText);
+                        setGallery(myArr);
+
+                        init();
+                    }
+                };
+                xmlhttp.open("GET", url, true);
+                xmlhttp.send();
+            }
+
+            function setGallery(arr) {
+                var out = "";
+                var i;
+                for (i = 0; i < arr.length; i++) {
+                    out += '<figure id="' + i + '">' +
+                        '<img src="img/' + arr[i].name + '" alt="' + arr[i].name + '"/>' +
+                        '<figcaption>' + arr[i].caption + '</figcaption>' +
+                        '</figure>';
+                }
+                document.getElementById("gallery").innerHTML = out;
+            }
+
+            function observe() {
+                var observeDOM = (function () {
+                    var MutationObserver = window.MutationObserver || window.WebKitMutationObserver,
+                        eventListenerSupported = window.addEventListener;
+
+                    return function (obj, callback) {
+                        if (MutationObserver) {
+                            var obs = new MutationObserver(function (mutations, observer) {
+                                if( mutations[0].addedNodes.length || mutations[0].removedNodes.length )
+                                    callback(mutations);
+                            });
+
+                            obs.observe(obj, { childList: true, subtree: false });
+                        }
+                        else if (eventListenerSupported) {
+                            obj.addEventListener('DOMNodeInserted', callback, false);
+                        }
+                    }
+                })();
+
+                observeDOM(document.getElementById('gallery'), function (mutations) {
+                    var gallery = [].slice.call(mutations[0].addedNodes);
+                    var zIndex = 1;
+                    gallery.forEach(function (item) {
+                        var img = item.getElementsByTagName('img')[0];
+                        var first = true;
+                        img.addEventListener('load', function () {
+                            if (first) {
+                                currentItem = item;
+                                first = false;
+                            }
+                            dataSize[item.id] = {item: item, width: item.offsetWidth, height: item.offsetHeight};
+
+                            dataLength++;
+
+                            item.addEventListener('click', function () {
+                                select(item);
+                                shuffleAll();
+                            });
+
+                            shuffle(item, zIndex++);
+                        })
+                    });
+                });
+            }
+
+            function init() {
+                navbarHeight = document.getElementById("nav").offsetHeight;
+                navigation();
+
+                window.addEventListener('resize', function () {
+                    if (resizeTimeout) {
+                        clearTimeout(resizeTimeout);
+                    }
+                    resizeTimeout = setTimeout(function () {
+                        shuffleAll();
+                        if (currentItem) {
+                            select(currentItem);
+                        }
+                    }, 100);
+                });
+            }
+
+            function select(item) {
+                var scale = 1.8;
+                var rotRandomD = 0;
+
+                var initWidth = dataSize[item.id].width;
+                var initHeight = dataSize[item.id].height;
+
+                var newWidth = (initWidth * scale);
+                var newHeight = initHeight * (newWidth / initWidth);
+
+                var x = (window.innerWidth - newWidth) / 2;
+                var y = (window.innerHeight - navbarHeight - newHeight) / 2;
+
+                item.style.transformOrigin = '0 0';
+                item.style.WebkitTransform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(' + scale + ',' + scale + ')';
+                item.style.msTransform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(' + scale + ',' + scale + ')';
+                item.style.transform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(' + scale + ',' + scale + ')';
+                item.style.zIndex = 999;
+
+                currentItem = item;
+            }
+
+            function shuffle(item, zIndex) {
+                var randomX = Math.random();
+                var randomY = Math.random();
+                var maxR = 45;
+                var minR = -45;
+                var rotRandomD = Math.random() * (maxR - minR) + minR;
+                var rotRandomR = rotRandomD * Math.PI / 180;
+
+                var rotatedW = Math.abs(item.offsetWidth * Math.cos(rotRandomR)) + Math.abs(item.offsetHeight * Math.sin(rotRandomR));
+                var rotatedH = Math.abs(item.offsetWidth * Math.sin(rotRandomR)) + Math.abs(item.offsetHeight * Math.cos(rotRandomR));
+
+                var x = Math.floor((window.innerWidth - rotatedW) * randomX);
+                var y = Math.floor((window.innerHeight - rotatedH) * randomY);
+
+                item.style.transformOrigin = '0 0';
+                item.style.WebkitTransform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(1)';
+                item.style.msTransform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(1)';
+                item.style.transform = 'translate(' + x + 'px,' + y + 'px) rotate(' + rotRandomD + 'deg) scale(1)';
+                item.style.zIndex = zIndex;
+            }
+
+            function shuffleAll() {
+                var zIndex = 0;
+                for (var id in dataSize) {
+                    if (id != currentItem.id) {
+                        shuffle(dataSize[id].item, zIndex++);
+                    }
+                }
+            }
+
+            function navigation() {
+                var next = document.getElementById('next');
+                var preview = document.getElementById('preview');
+
+                next.addEventListener('click', function () {
+                    var currentIndex = Number(currentItem.id) + 1;
+                    if (currentIndex >= dataLength) {
+                        currentIndex = 0
+                    }
+                    select(dataSize[currentIndex].item);
+                    shuffleAll();
+                });
+
+                preview.addEventListener('click', function () {
+                    var currentIndex = Number(currentItem.id) - 1;
+                    if (currentIndex < 0) {
+                        currentIndex = dataLength - 1
+                    }
+                    select(dataSize[currentIndex].item);
+                    shuffleAll();
+                })
+            }
+
+            return polaroidGallery;
+        })();
+
+        $('.btn').on('click',function () {
+            $('.mask').fadeIn(300);
+            $('.fullscreen').show();
+            new polaroidGallery("data/data.json");
+
+        });
+
+        var canvas = $('#canvas');
+
+
+
+        if (!canvas[0].getContext) {
+            $("#error").show();
+            return false;
+        }
+
+        var width = canvas.width();
+        var height = canvas.height();
+
+        canvas.attr("width", width);
+        canvas.attr("height", height);
+
+        var opts = {
+            seed: {
+                x: width / 2 - 20,
+                color: "rgb(190, 26, 37)",
+                scale: 2
+            },
+            branch: [
+                [535, 680, 570, 250, 500, 200, 30, 100, [
+                    [540, 500, 455, 417, 340, 400, 13, 100, [
+                        [450, 435, 434, 430, 394, 395, 2, 40]
+                    ]],
+                    [550, 445, 600, 356, 680, 345, 12, 100, [
+                        [578, 400, 648, 409, 661, 426, 3, 80]
+                    ]],
+                    [539, 281, 537, 248, 534, 217, 3, 40],
+                    [546, 397, 413, 247, 328, 244, 9, 80, [
+                        [427, 286, 383, 253, 371, 205, 2, 40],
+                        [498, 345, 435, 315, 395, 330, 4, 60]
+                    ]],
+                    [546, 357, 608, 252, 678, 221, 6, 100, [
+                        [590, 293, 646, 277, 648, 271, 2, 80]
+                    ]]
+                ]]
+            ],
+            bloom: {
+                num: 700,
+                width: 1080,
+                height: 650
+            },
+            footer: {
+                width: 1200,
+                height: 5,
+                speed: 10
+            }
+        };
+
+        var tree = new Tree(canvas[0], width, height, opts);
+        var seed = tree.seed;
+        var foot = tree.footer;
+        var hold = 1;
+
+        canvas.click(function (e) {
+            var au = document.querySelector('#audio');
+            au.play();
+            var offset = canvas.offset(), x, y;
+            x = e.pageX - offset.left;
+            y = e.pageY - offset.top;
+            if (seed.hover(x, y)) {
+                hold = 0;
+                canvas.unbind("click");
+                canvas.unbind("mousemove");
+                canvas.removeClass('hand');
+            }
+        }).mousemove(function (e) {
+            var offset = canvas.offset(), x, y;
+            x = e.pageX - offset.left;
+            y = e.pageY - offset.top;
+            canvas.toggleClass('hand', seed.hover(x, y));
+        });
+
+        var seedAnimate = eval(Jscex.compile("async", function () {
+            seed.draw();
+            while (hold) {
+                $await(Jscex.Async.sleep(10));
+            }
+            while (seed.canScale()) {
+                seed.scale(0.95);
+                $await(Jscex.Async.sleep(10));
+            }
+            while (seed.canMove()) {
+                seed.move(0, 2);
+                foot.draw();
+                $await(Jscex.Async.sleep(10));
+            }
+        }));
+
+        var growAnimate = eval(Jscex.compile("async", function () {
+            do {
+                tree.grow();
+                $await(Jscex.Async.sleep(10));
+            } while (tree.canGrow());
+        }));
+
+        var flowAnimate = eval(Jscex.compile("async", function () {
+            do {
+                tree.flower(2);
+                $await(Jscex.Async.sleep(10));
+            } while (tree.canFlower());
+        }));
+
+        var moveAnimate = eval(Jscex.compile("async", function () {
+            tree.snapshot("p1", 240, 0, 610, 680);
+            while (tree.move("p1", 500, 0)) {
+                foot.draw();
+                $await(Jscex.Async.sleep(10));
+            }
+            foot.draw();
+            tree.snapshot("p2", 500, 0, 610, 680);
+
+            // 会有闪烁不得意这样做, (＞﹏＜)
+            canvas.parent().css("background", "url(" + tree.toDataURL('image/png') + ")");
+            canvas.css("background", "#ffe");
+            $await(Jscex.Async.sleep(300));
+            canvas.css("background", "none");
+        }));
+
+        var jumpAnimate = eval(Jscex.compile("async", function () {
+            var ctx = tree.ctx;
+            while (true) {
+                tree.ctx.clearRect(0, 0, width, height);
+                tree.jump();
+                foot.draw();
+                $await(Jscex.Async.sleep(25));
+            }
+        }));
+
+        var textAnimate = eval(Jscex.compile("async", function () {
+            var together = new Date();
+            together.setFullYear(2016, 9, 1); 			//时间年月日
+            together.setHours(16);						//小时
+            together.setMinutes(53);					//分钟
+            together.setSeconds(0);					//秒前一位
+            together.setMilliseconds(2);				//秒第二位
+
+            $("#code").show().typewriter();
+
+            $("#clock-box").fadeIn(500);
+            while (true) {
+                timeElapse(together);
+                $await(Jscex.Async.sleep(1000));
+            }
+        }));
+
+        var runAsync = eval(Jscex.compile("async", function () {
+            $await(seedAnimate());
+            $await(growAnimate());
+            $await(flowAnimate());
+            $await(moveAnimate());
+
+            textAnimate().start();
+
+            $await(jumpAnimate());
+        }));
+
+        runAsync().start();
+    })();
+</script>
+</body>
+</html>
